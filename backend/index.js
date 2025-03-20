@@ -9,7 +9,7 @@ import UserChats from "./models/userChats.js";
 import mongoose from "mongoose";
 
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 const app = express();
 app.use(express.json());
 // app.options('*', cors()); // Enable pre-flight for all routes
