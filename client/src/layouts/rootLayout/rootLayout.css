@@ -1,0 +1,45 @@
+.rootLayout {
+  padding: 16px 64px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.rootLayout header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Center the links within their container */
+.rootLayout .links {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  gap: 16px; /* Adjust gap as needed */
+}
+
+/* Style for each link item (icon + text) */
+.rootLayout .link-item {
+  display: flex;
+  align-items: center;
+  gap: 5px; /* Space between icon and text */
+}
+
+/* Style for the icon */
+.rootLayout .icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Style for the text part of the link */
+.rootLayout .logo {
+  display: inline-flex;
+  align-items: center;
+  font-weight: bold;
+}
+
+.rootLayout main {
+  flex: 1;
+  overflow: hidden;
+}
