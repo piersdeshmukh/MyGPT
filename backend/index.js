@@ -25,9 +25,21 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.options('*', cors()); // Enable pre-flight for all routes
+
 app.get("/test",(req,res)=>{
     res.send("it works");
 })
+
+// Error handling middleware placed after routes
+app.use((err, req, res, next) => {
+  // Add CORS headers to error responses
+  res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  // Handle the error
+  res.status(500).send('Something broke!');
+});
+
 const connect = async () => {
   try {
     await mongoose.connect(process.env.MONGO);
