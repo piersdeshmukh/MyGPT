@@ -7,15 +7,19 @@ import { clerkClient, requireAuth, getAuth } from '@clerk/express'
 import Chat from "./models/chat.js"
 import UserChats from "./models/userChats.js";
 import mongoose from "mongoose";
+import path from "path";
+import url, { fileURLToPath } from "url";
 
 
 const port = process.env.PORT;
 const app = express();
 app.use(express.json());
 // app.options('*', cors()); // Enable pre-flight for all routes
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.CLIENT_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -171,4 +175,11 @@ app.get("/api/userchats", requireAuth(), async (req, res) => {
     console.log(err);
     res.status(500).send("Error fetching userchats!");
   }
+});
+
+// PRODUCTION
+app.use(express.static(path.join(__dirname, "../client/dist")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
