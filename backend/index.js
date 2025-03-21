@@ -1,23 +1,23 @@
 import express from "express";
 import ImageKit from "imagekit";
 import cors from "cors";
-import 'dotenv/config'
-import { clerkMiddleware } from '@clerk/express'
-import { clerkClient, requireAuth, getAuth } from '@clerk/express'
-import Chat from "./models/chat.js"
+import 'dotenv/config';
+import { clerkMiddleware } from '@clerk/express';
+import { clerkClient, requireAuth, getAuth } from '@clerk/express';
+import Chat from "./models/chat.js";
 import UserChats from "./models/userChats.js";
 import mongoose from "mongoose";
 import path from "path";
-import url, { fileURLToPath } from "url";
-
+import { fileURLToPath } from "url";
 
 const port = process.env.PORT;
 const app = express();
 app.use(express.json());
-// app.options('*', cors()); // Enable pre-flight for all routes
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Global CORS middleware
 app.use(cors({
   origin: process.env.CLIENT_URL,
   credentials: true,
@@ -27,94 +27,55 @@ app.use(cors({
 
 app.options('*', cors()); // Enable pre-flight for all routes
 
-app.get("/test",(req,res)=>{
-    res.send("it works");
-})
+// Register external middlewares (like Clerk)
+app.use(clerkMiddleware());
 
-// Error handling middleware placed after routes
-app.use((err, req, res, next) => {
-  // Add CORS headers to error responses
-  res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  // Handle the error
-  res.status(500).send('Something broke!');
+// Test Route
+app.get("/test", (req, res) => {
+  res.send("it works");
 });
 
-const connect = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO);
-    console.log("Connected to MongoDB");
-  } catch (err) {
-    console.log(err);
-  }
-};
-
+// Auth route for ImageKit
 const imagekit = new ImageKit({
-    urlEndpoint: process.env.IMAGE_KIT_ENDPOINT,
-    publicKey: process.env.IMAGE_KIT_PUBLIC_KEY,
-    privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
+  urlEndpoint: process.env.IMAGE_KIT_ENDPOINT,
+  publicKey: process.env.IMAGE_KIT_PUBLIC_KEY,
+  privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
 });
 
-// allow cross-origin requests
-// app.use(function(req, res, next) {
-//   res.header("Access-Control-Allow-Origin", "*");
-//   res.header("Access-Control-Allow-Headers", 
-//     "Origin, X-Requested-With, Content-Type, Accept");
-//   next();
-// });
-
-app.get('/auth', function (req, res) {
-  var result = imagekit.getAuthenticationParameters();
+app.get('/auth', (req, res) => {
+  const result = imagekit.getAuthenticationParameters();
   res.send(result);
 });
 
-app.use(clerkMiddleware())
-
+// Protected route using Clerk
 app.get('/protected', requireAuth(), async (req, res) => {
-  // Use `getAuth()` to get the user's `userId`
-  const { userId } = getAuth(req)
+  const { userId } = getAuth(req);
+  const user = await clerkClient.users.getUser(userId);
+  return res.json({ user });
+});
 
-  // Use Clerk's JavaScript Backend SDK to get the user's User object
-  const user = await clerkClient.users.getUser(userId)
-
-  return res.json({ user })
-})
-
-// Start the server and listen on the specified port
-app.listen(port, () => {
-  connect();
-  console.log(`Example app listening at http://localhost:${port}`)
-})
-
-
+// API endpoints
 app.post("/api/chats", requireAuth(), async (req, res) => {
-  const { userId } = getAuth(req)
-  const { text } = req.body; //how? text came here, bcz was added in body in client's req
+  const { userId } = getAuth(req);
+  const { text } = req.body;
   try {
-    // CREATE A NEW CHAT
     const newChat = new Chat({
       userId: userId,
       history: [{ role: "user", parts: [{ text }] }],
     });
-
     const savedChat = await newChat.save();
-    // CHECK IF THE USERCHATS EXISTS
+
     const userChats = await UserChats.find({ userId: userId });
-    // IF DOESN'T EXIST CREATE A NEW ONE AND ADD THE CHAT IN THE CHATS ARRAY
     if (!userChats.length) {
       const newUserChats = new UserChats({
         userId: userId,
-        chats: [
-          {
-            _id: savedChat._id,
-            title: text.substring(0, 40),
-          },
-        ],
+        chats: [{
+          _id: savedChat._id,
+          title: text.substring(0, 40),
+        }],
       });
-
-    const newsaveduserchat = await newUserChats.save();
+      await newUserChats.save();
     } else {
-      // IF EXISTS, PUSH THE CHAT TO THE EXISTING ARRAY
       await UserChats.updateOne(
         { userId: userId },
         {
@@ -127,7 +88,7 @@ app.post("/api/chats", requireAuth(), async (req, res) => {
         }
       );
     }
-    res.status(201).send(newChat._id); //why send chat id, in on success recieve id
+    res.status(201).send(newChat._id);
   } catch (err) {
     console.log(err);
     res.status(500).send("Error creating chat!");
@@ -135,11 +96,9 @@ app.post("/api/chats", requireAuth(), async (req, res) => {
 });
 
 app.get("/api/chats/:id", requireAuth(), async (req, res) => {
-  const { userId } = getAuth(req)
-
+  const { userId } = getAuth(req);
   try {
     const chat = await Chat.findOne({ _id: req.params.id, userId });
-
     res.status(200).send(chat);
   } catch (err) {
     console.log(err);
@@ -148,10 +107,8 @@ app.get("/api/chats/:id", requireAuth(), async (req, res) => {
 });
 
 app.put("/api/chats/:id", requireAuth(), async (req, res) => {
-  const { userId } = getAuth(req)
-
+  const { userId } = getAuth(req);
   const { question, answer, img } = req.body;
-
   const newItems = [
     ...(question
       ? [{ role: "user", parts: [{ text: question }], ...(img && { img }) }]
@@ -162,13 +119,7 @@ app.put("/api/chats/:id", requireAuth(), async (req, res) => {
   try {
     const updatedChat = await Chat.updateOne(
       { _id: req.params.id, userId },
-      {
-        $push: {
-          history: {
-            $each: newItems,
-          },
-        },
-      }
+      { $push: { history: { $each: newItems } } }
     );
     res.status(200).send(updatedChat);
   } catch (err) {
@@ -178,8 +129,7 @@ app.put("/api/chats/:id", requireAuth(), async (req, res) => {
 });
 
 app.get("/api/userchats", requireAuth(), async (req, res) => {
-  const { userId } = getAuth(req)
-
+  const { userId } = getAuth(req);
   try {
     const userChats = await UserChats.find({ userId });
     res.status(200).send(userChats[0]?.chats);
@@ -189,9 +139,33 @@ app.get("/api/userchats", requireAuth(), async (req, res) => {
   }
 });
 
-// PRODUCTION
+// Connect to MongoDB
+const connect = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO);
+    console.log("Connected to MongoDB");
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+// Start the server
+app.listen(port, () => {
+  connect();
+  console.log(`Server running at http://localhost:${port}`);
+});
+
+// Production: Serve static files
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
+// Catch-all route for client-side routing. This should come after static middleware.
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
+});
+
+// Error handling middleware should be the very last middleware
+app.use((err, req, res, next) => {
+  res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.status(500).send("Something broke!");
 });
