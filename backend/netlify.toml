@@ -1,6 +1,5 @@
 [build]
-  command = "npm run build" # Or whatever your build command is
-  publish = "client/dist"   # Your client build output directory
+  command = "npm install -f" # Or whatever your build command is
 
 # This is the most important part - it ensures your API routes are properly handled
 [[redirects]]
