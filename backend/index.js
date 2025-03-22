@@ -17,8 +17,8 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.SERVER_URL
+  "https://piersgpt-server.netlify.app",
+  "https://piersgpt.netlify.app"
 ];
 // Global CORS middleware
 app.use(cors({
