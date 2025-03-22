@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build" # Or whatever your build command is
+  publish = "client/dist"   # Your client build output directory
+
+# This is the most important part - it ensures your API routes are properly handled
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# This ensures client-side routing works correctly
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
