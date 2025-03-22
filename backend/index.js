@@ -16,10 +16,13 @@ app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.SERVER_URL
+];
 // Global CORS middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -165,7 +168,14 @@ app.get("*", (req, res) => {
 
 // Error handling middleware should be the very last middleware
 app.use((err, req, res, next) => {
-  res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  const origin = req.headers.origin;
+  // Check if the incoming origin is in the allowedOrigins array
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header(
+    "Access-Control-Allow-Headers", 
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
   res.status(500).send("Something broke!");
 });
