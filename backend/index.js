@@ -10,40 +10,43 @@ import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 const app = express();
+
+// IMPORTANT: CORS middleware must be registered before any other middleware or routes
+const allowedOrigins = [
+  "https://piersgpt-server.netlify.app",
+  "https://piersgpt.netlify.app",
+  // Include localhost for development
+  "http://localhost:3000",
+  "http://localhost:5173"
+];
+
+// Simple CORS middleware that should work with Netlify
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // Handle OPTIONS method
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  return next();
+});
+
+// After CORS, register other middlewares
 app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const allowedOrigins = [
-  "https://piersgpt-server.netlify.app",
-  "https://piersgpt.netlify.app"
-];
 
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-// Apply CORS middleware to all routes
-app.use(cors(corsOptions));
-
-// Enable pre-flight for all routes
-app.options('*', cors(corsOptions));
-
-// Register external middlewares (like Clerk)
+// Register Clerk middleware
 app.use(clerkMiddleware());
 
 // Test Route
@@ -171,7 +174,7 @@ app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
 
-// Production: Serve static files - this should come before the catch-all route
+// Production: Serve static files
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
 // Catch-all route for client-side routing
@@ -179,38 +182,15 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
-// Global error handling middleware
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   
-  // Ensure CORS headers are set even for error responses
+  // Ensure CORS headers are present in error responses too
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
+    res.header('Access-Control-Allow-Origin', origin);
   }
-  res.header(
-    "Access-Control-Allow-Headers", 
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
   
-  // Send appropriate status code
-  res.status(err.status || 500).json({
-    message: err.message || "Something went wrong!",
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
-});
-
-// 404 handler - This should be after all other routes
-app.use((req, res) => {
-  // Ensure CORS headers are set for 404 responses
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-  res.header(
-    "Access-Control-Allow-Headers", 
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  
-  res.status(404).json({ message: "Route not found" });
+  res.status(500).json({ message: "Something went wrong!" });
 });
