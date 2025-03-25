@@ -14,13 +14,15 @@ const port = process.env.PORT || 3000;
 const app = express();
 
 // IMPORTANT: CORS middleware must be registered before any other middleware or routes
-const allowedOrigins = [
-  "https://piersgpt-server.netlify.app",
-  "https://piersgpt.netlify.app",
-  // Include localhost for development
-  "http://localhost:3000",
-  "http://localhost:5173"
-];
+// const allowedOrigins = [
+//   "https://piersgpt-server.netlify.app",
+//   "https://piersgpt.netlify.app",
+//   // Include localhost for development
+//   "http://localhost:3000",
+//   "http://localhost:5173"
+// ];
+
+const allowedOrigins = [ 'http://mygpt-project.online/' ];
 
 // Simple CORS middleware that should work with Netlify
 app.use((req, res, next) => {
